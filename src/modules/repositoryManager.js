@@ -2,12 +2,18 @@ import simpleGit from "simple-git";
 import fs from "fs";
 import path from "path";
 
-export async function cloneRepository({ workspace, repo, branch }) {
-  const workspaceDir = path.resolve("src/workspace");
-  const repoPath = path.resolve(workspaceDir, repo);
+export async function cloneRepository({
+  workspace,
+  repo,
+  branch,
+  workspaceDir,
+  logger
+}) {
+  const resolvedWorkspaceDir = path.resolve(workspaceDir);
+  const repoPath = path.resolve(resolvedWorkspaceDir, repo);
 
-  if (!fs.existsSync(workspaceDir)) {
-    fs.mkdirSync(workspaceDir, { recursive: true });
+  if (!fs.existsSync(resolvedWorkspaceDir)) {
+    fs.mkdirSync(resolvedWorkspaceDir, { recursive: true });
   }
 
   const repoUrl = `git@bitbucket.org:${workspace}/${repo}.git`;
@@ -15,13 +21,16 @@ export async function cloneRepository({ workspace, repo, branch }) {
   const git = simpleGit();
 
   if (!fs.existsSync(repoPath)) {
-    console.log("Clonando repositório:", repo);
+    logger.info("Clonando repositorio", { repo });
     await git.clone(repoUrl, repoPath);
   }
 
   const repoGit = simpleGit(repoPath);
 
-  console.log("Atualizando branch:", branch);
+  logger.info("Atualizando branch do repositorio local", {
+    repo,
+    branch
+  });
 
   await repoGit.fetch();
   await repoGit.checkout(branch);

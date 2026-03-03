@@ -1,20 +1,16 @@
 import simpleGit from "simple-git";
 
-const MAX_DIFF_SIZE = 20000; // limite para não explodir LLM
-
-const IGNORED_PATHS = [
-  "node_modules",
-  "dist",
-  "build",
-  ".git",
-  ".next",
-  "coverage"
-];
-
-export async function getCommitDiff(repoPath, oldHash, newHash) {
+export async function getCommitDiff({
+  repoPath,
+  oldHash,
+  newHash,
+  ignoredPaths,
+  maxDiffSize,
+  logger
+}) {
   const git = simpleGit(repoPath);
 
-  console.log("Gerando diff entre:", oldHash, "→", newHash);
+  logger.info("Gerando diff de commits", { oldHash, newHash });
 
   const rawDiff = await git.diff([
     "--unified=3",
@@ -26,13 +22,16 @@ export async function getCommitDiff(repoPath, oldHash, newHash) {
   const filtered = rawDiff
     .split("\n")
     .filter(line => {
-      return !IGNORED_PATHS.some(path => line.includes(path));
+      return !ignoredPaths.some(path => line.includes(path));
     })
     .join("\n");
 
-  if (filtered.length > MAX_DIFF_SIZE) {
-    console.log("Diff muito grande, truncando...");
-    return filtered.substring(0, MAX_DIFF_SIZE);
+  if (filtered.length > maxDiffSize) {
+    logger.warn("Diff muito grande, truncando", {
+      size: filtered.length,
+      maxDiffSize
+    });
+    return filtered.substring(0, maxDiffSize);
   }
 
   return filtered;
