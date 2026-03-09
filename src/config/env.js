@@ -32,6 +32,7 @@ export const env = {
   llmProvider: process.env.LLM_PROVIDER || "openai",
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiModel: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+  openAiMaxOutputTokens: parseNumber(process.env.OPENAI_MAX_OUTPUT_TOKENS, 1200),
   workspaceDir: process.env.WORKSPACE_DIR || "src/workspace",
   jsonBodyLimit: process.env.JSON_BODY_LIMIT || "1mb",
   ignoredDiffPaths: parseList(

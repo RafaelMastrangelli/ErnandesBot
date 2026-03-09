@@ -7,7 +7,8 @@ export function createLLMProvider() {
   if (provider === "openai") {
     return new OpenAIProvider({
       apiKey: env.openAiApiKey,
-      model: env.openAiModel
+      model: env.openAiModel,
+      maxOutputTokens: env.openAiMaxOutputTokens
     });
   }
 
