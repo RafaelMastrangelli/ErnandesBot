@@ -1,4 +1,4 @@
-# AI Doc Agent
+# ErnandesBot
 Sistema de documentação automática para repositórios Git.
 
 ## O que é o projeto
