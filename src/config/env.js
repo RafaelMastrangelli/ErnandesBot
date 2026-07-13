@@ -62,5 +62,14 @@ export const env = {
   docSkipMarker: process.env.DOC_SKIP_MARKER || "[ai-doc-agent]",
   docAutoPush: process.env.DOC_AUTO_PUSH !== "false",
   docBranchStrategy: process.env.DOC_BRANCH_STRATEGY || "dedicated",
-  docBranch: process.env.DOC_BRANCH || "docs/auto-update"
+  docBranch: process.env.DOC_BRANCH || "docs/auto-update",
+  docBootstrapMaxFiles: parseNumber(process.env.DOC_BOOTSTRAP_MAX_FILES, 25),
+  docBootstrapMaxFileBytes: parseNumber(
+    process.env.DOC_BOOTSTRAP_MAX_FILE_BYTES,
+    12000
+  ),
+  docBootstrapMaxTotalChars: parseNumber(
+    process.env.DOC_BOOTSTRAP_MAX_TOTAL_CHARS,
+    60000
+  )
 };
