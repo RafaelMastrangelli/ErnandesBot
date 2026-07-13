@@ -1,0 +1,68 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ai-doc-agent-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ai-doc}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-ai-doc}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  rabbitmq-init:
+    build: .
+    container_name: ai-doc-agent-rabbitmq-init
+    command: ["node", "scripts/init-rabbitmq.js"]
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ai-doc}:${RABBITMQ_PASS:-ai-doc}@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    container_name: ai-doc-agent-api
+    command: ["node", "server.js"]
+    ports:
+      - "${PORT:-3005}:${PORT:-3005}"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ai-doc}:${RABBITMQ_PASS:-ai-doc}@rabbitmq:5672
+    depends_on:
+      rabbitmq-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: ai-doc-agent-worker
+    command: ["node", "worker.js"]
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-ai-doc}:${RABBITMQ_PASS:-ai-doc}@rabbitmq:5672
+      WORKSPACE_DIR: /app/src/workspace
+    volumes:
+      - workspace_data:/app/src/workspace
+      - ${SSH_KEY_DIR:-./.ssh}:/root/.ssh:ro
+    depends_on:
+      rabbitmq-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+  workspace_data:

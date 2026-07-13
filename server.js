@@ -1,18 +1,10 @@
 import { createApp } from "./src/app.js";
 import { createLogger } from "./src/common/logger.js";
 import { env } from "./src/config/env.js";
-import { startWorker } from "./src/modules/processing/worker.service.js";
-import { createInMemoryQueue } from "./src/queue/in-memory-queue.js";
+import { createRabbitMQPublisher } from "./src/queue/rabbitmq-queue.js";
 
-const logger = createLogger("bootstrap");
-const queue = createInMemoryQueue({
-  maxSize: env.maxQueueSize
-});
-
-startWorker({
-  queue,
-  logger
-});
+const logger = createLogger("api");
+const queue = await createRabbitMQPublisher({ logger });
 
 const app = createApp({
   queue,
@@ -20,5 +12,5 @@ const app = createApp({
 });
 
 app.listen(env.port, env.host, () => {
-  logger.info(`AI Doc Agent rodando em ${env.host}:${env.port}`);
+  logger.info(`AI Doc Agent API rodando em ${env.host}:${env.port}`);
 });

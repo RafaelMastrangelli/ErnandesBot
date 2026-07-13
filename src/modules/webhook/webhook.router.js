@@ -1,42 +1,58 @@
 import express from "express";
 
 import { env } from "../../config/env.js";
-import { mapPushEvent } from "./webhook.mapper.js";
+import { getWebhookHandler } from "./webhook.handler.js";
 
 export function createWebhookRouter({ queue, logger }) {
   const router = express.Router();
+  const webhookHandler = getWebhookHandler();
 
-  router.post("/webhook", (req, res) => {
-    const eventKey = req.headers["x-event-key"];
-
-    if (eventKey !== env.webhookEventKey) {
-      logger.info("Evento ignorado por chave diferente", { eventKey });
+  router.post("/webhook", async (req, res) => {
+    if (!webhookHandler.validateRequest(req)) {
+      logger.info("Evento ignorado por header invalido", {
+        gitProvider: webhookHandler.provider
+      });
       return res.sendStatus(200);
     }
 
-    const eventData = mapPushEvent(req.body);
+    const eventData = webhookHandler.mapPushEvent(req.body);
 
-    if (!eventData?.workspace || !eventData?.repo || !eventData?.branch) {
-      logger.warn("Payload de push invalido para processamento");
+    if (!eventData?.owner || !eventData?.repo || !eventData?.branch) {
+      logger.warn("Payload de push invalido para processamento", {
+        gitProvider: webhookHandler.provider
+      });
       return res.sendStatus(200);
     }
 
-    const enqueued = queue.enqueue(eventData);
+    try {
+      const published = await queue.publish(eventData);
 
-    if (!enqueued) {
-      logger.warn("Fila cheia. Evento rejeitado para retry do provider", {
-        queueSize: queue.size()
+      if (!published) {
+        logger.warn("Fila cheia. Evento rejeitado para retry do provider", {
+          queue: env.rabbitmqQueue
+        });
+        return res.sendStatus(503);
+      }
+
+      logger.info("Evento publicado na fila", {
+        gitProvider: eventData.gitProvider,
+        owner: eventData.owner,
+        repo: eventData.repo,
+        branch: eventData.branch,
+        queue: env.rabbitmqQueue
+      });
+
+      return res.sendStatus(200);
+    } catch (error) {
+      logger.error("Falha ao publicar evento na fila", {
+        message: error?.message || "Erro desconhecido",
+        gitProvider: eventData.gitProvider,
+        owner: eventData.owner,
+        repo: eventData.repo,
+        branch: eventData.branch
       });
       return res.sendStatus(503);
     }
-
-    logger.info("Evento enfileirado", {
-      repo: eventData.repo,
-      branch: eventData.branch,
-      queueSize: queue.size()
-    });
-
-    return res.sendStatus(200);
   });
 
   return router;

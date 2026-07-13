@@ -14,7 +14,8 @@ function buildDocumentationContext(event, diff) {
     ].join(" "),
     diff,
     metadata: {
-      workspace: event.workspace,
+      gitProvider: event.gitProvider,
+      owner: event.owner,
       repo: event.repo,
       branch: event.branch,
       oldHash: event.oldHash,
@@ -25,7 +26,8 @@ function buildDocumentationContext(event, diff) {
 
 async function processEvent(event, logger, llmProvider) {
   const repoPath = await cloneRepository({
-    workspace: event.workspace,
+    gitProvider: event.gitProvider,
+    owner: event.owner,
     repo: event.repo,
     branch: event.branch,
     workspaceDir: env.workspaceDir,
@@ -68,19 +70,21 @@ async function processEvent(event, logger, llmProvider) {
   // Ponto futuro: persistir/atualizar arquivos e efetuar commit/push.
 }
 
-export function startWorker({ queue, logger }) {
-  let isProcessing = false;
-  const llmProvider = createLLMProvider();
+/**
+ * @param {{ consumer: import("../../queue/queue.contract.js").QueueConsumer, logger: import("../../common/logger.js").Logger }} params
+ */
+export async function startWorker({ consumer, logger }) {
+  const llmProvider = await createLLMProvider();
 
-  setInterval(async () => {
-    if (isProcessing) return;
+  logger.info("Worker aguardando mensagens na fila", {
+    queue: env.rabbitmqQueue,
+    llmProvider: env.llmProvider
+  });
 
-    const event = queue.dequeue();
-    if (!event) return;
-
-    isProcessing = true;
-
+  await consumer.consume(async (event, { ack, nack, republish }) => {
     logger.info("Worker processando evento", {
+      gitProvider: event.gitProvider,
+      owner: event.owner,
       repo: event.repo,
       branch: event.branch,
       attempts: event.attempts || 0
@@ -88,6 +92,7 @@ export function startWorker({ queue, logger }) {
 
     try {
       await processEvent(event, logger, llmProvider);
+      ack();
     } catch (error) {
       const attempts = (event.attempts || 0) + 1;
       const canRetry = attempts <= env.maxProcessingRetries;
@@ -100,26 +105,25 @@ export function startWorker({ queue, logger }) {
       });
 
       if (canRetry) {
-        const requeued = queue.enqueue({
+        await republish({
           ...event,
           attempts
         });
-
-        if (!requeued) {
-          logger.error("Falha ao reenfileirar evento apos erro: fila cheia", {
-            repo: event.repo,
-            branch: event.branch
-          });
-        } else {
-          logger.warn("Evento reenfileirado para nova tentativa", {
-            repo: event.repo,
-            branch: event.branch,
-            attempts
-          });
-        }
+        ack();
+        logger.warn("Evento reenfileirado para nova tentativa", {
+          repo: event.repo,
+          branch: event.branch,
+          attempts
+        });
+        return;
       }
-    } finally {
-      isProcessing = false;
+
+      nack(false);
+      logger.error("Evento enviado para dead-letter apos esgotar tentativas", {
+        repo: event.repo,
+        branch: event.branch,
+        attempts
+      });
     }
-  }, env.workerPollMs);
+  });
 }

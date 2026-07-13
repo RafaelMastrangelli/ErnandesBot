@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 import { LLMProvider } from "./llmProvider.js";
-
+import { buildDocumentationPrompt } from "./prompt-builder.js";
 export class OpenAIProvider extends LLMProvider {
   constructor({ apiKey, model, maxOutputTokens }) {
     super();
@@ -26,15 +26,7 @@ export class OpenAIProvider extends LLMProvider {
           content: [
             {
               type: "input_text",
-              text: [
-                context.instructions,
-                "",
-                "Diff do commit:",
-                context.diff,
-                "",
-                "Metadata:",
-                JSON.stringify(context.metadata || {}, null, 2)
-              ].join("\n")
+              text: buildDocumentationPrompt(context)
             }
           ]
         }

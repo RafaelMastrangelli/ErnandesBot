@@ -24,15 +24,28 @@ function parseList(value, fallback) {
 export const env = {
   host: process.env.HOST || "0.0.0.0",
   port: parseNumber(process.env.PORT, 3005),
-  webhookEventKey: process.env.WEBHOOK_EVENT_KEY || "repo:push",
-  workerPollMs: parseNumber(process.env.WORKER_POLL_MS, 3000),
+  gitProvider: process.env.GIT_PROVIDER || "",
+  githubWebhookEvent: process.env.GITHUB_WEBHOOK_EVENT || "push",
+  bitbucketWebhookEventKey: process.env.BITBUCKET_WEBHOOK_EVENT_KEY || "repo:push",
+  rabbitmqUrl:
+    process.env.RABBITMQ_URL || "amqp://ai-doc:ai-doc@localhost:5672",
+  rabbitmqQueue: process.env.RABBITMQ_QUEUE || "ai-doc-agent.events",
+  rabbitmqDeadLetterExchange:
+    process.env.RABBITMQ_DLX || "ai-doc-agent.dlx",
+  rabbitmqDeadLetterQueue:
+    process.env.RABBITMQ_DLQ || "ai-doc-agent.events.dlq",
+  rabbitmqDeadLetterRoutingKey:
+    process.env.RABBITMQ_DLQ_ROUTING_KEY || "events.failed",
   maxQueueSize: parseNumber(process.env.MAX_QUEUE_SIZE, 1000),
   maxProcessingRetries: parseNumber(process.env.MAX_PROCESSING_RETRIES, 2),
   maxDiffSize: parseNumber(process.env.MAX_DIFF_SIZE, 20000),
-  llmProvider: process.env.LLM_PROVIDER || "openai",
+  llmProvider: process.env.LLM_PROVIDER || "",
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiModel: process.env.OPENAI_MODEL || "gpt-4.1-mini",
   openAiMaxOutputTokens: parseNumber(process.env.OPENAI_MAX_OUTPUT_TOKENS, 1200),
+  groqApiKey: process.env.GROQ_API_KEY || "",
+  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  groqMaxOutputTokens: parseNumber(process.env.GROQ_MAX_OUTPUT_TOKENS, 1200),
   workspaceDir: process.env.WORKSPACE_DIR || "src/workspace",
   jsonBodyLimit: process.env.JSON_BODY_LIMIT || "1mb",
   ignoredDiffPaths: parseList(

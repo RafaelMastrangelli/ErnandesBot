@@ -1,4 +1,8 @@
-export function mapPushEvent(payload) {
+/**
+ * @param {object} payload
+ * @returns {import("../push-event.contract.js").PushEvent | null}
+ */
+export function mapBitbucketPushEvent(payload) {
   const change = payload?.push?.changes?.[0];
 
   if (!change?.new?.target?.hash) {
@@ -9,9 +13,17 @@ export function mapPushEvent(payload) {
   const repoFromFullName =
     typeof fullName === "string" ? fullName.split("/")[1] : null;
 
+  const owner = payload?.repository?.workspace?.slug || null;
+  const repo = repoFromFullName || payload?.repository?.name || null;
+
+  if (!owner || !repo) {
+    return null;
+  }
+
   return {
-    workspace: payload?.repository?.workspace?.slug || null,
-    repo: repoFromFullName || payload?.repository?.name || null,
+    gitProvider: "bitbucket",
+    owner,
+    repo,
     branch: change.new?.name || null,
     oldHash: change.old?.target?.hash || null,
     newHash: change.new.target.hash,
