@@ -57,7 +57,7 @@ services:
       WORKSPACE_DIR: /app/src/workspace
     volumes:
       - workspace_data:/app/src/workspace
-      - ${SSH_KEY_DIR:-./.ssh}:/root/.ssh:ro
+      - ${SSH_KEY_DIR:-./.ssh}:/ssh-mount:ro
     depends_on:
       rabbitmq-init:
         condition: service_completed_successfully

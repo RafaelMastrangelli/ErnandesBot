@@ -42,14 +42,24 @@ export const env = {
   llmProvider: process.env.LLM_PROVIDER || "",
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiModel: process.env.OPENAI_MODEL || "gpt-4.1-mini",
-  openAiMaxOutputTokens: parseNumber(process.env.OPENAI_MAX_OUTPUT_TOKENS, 1200),
+  openAiMaxOutputTokens: parseNumber(process.env.OPENAI_MAX_OUTPUT_TOKENS, 4096),
   groqApiKey: process.env.GROQ_API_KEY || "",
   groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-  groqMaxOutputTokens: parseNumber(process.env.GROQ_MAX_OUTPUT_TOKENS, 1200),
+  groqMaxOutputTokens: parseNumber(process.env.GROQ_MAX_OUTPUT_TOKENS, 4096),
   workspaceDir: process.env.WORKSPACE_DIR || "src/workspace",
   jsonBodyLimit: process.env.JSON_BODY_LIMIT || "1mb",
   ignoredDiffPaths: parseList(
     process.env.IGNORED_DIFF_PATHS,
     DEFAULT_IGNORED_DIFF_PATHS
-  )
+  ),
+  docTargetFile: process.env.DOC_TARGET_FILE || "README.md",
+  docContextFiles: parseList(process.env.DOC_CONTEXT_FILES, []),
+  docGitUserName: process.env.DOC_GIT_USER_NAME || "ai-doc-agent",
+  docGitUserEmail: process.env.DOC_GIT_USER_EMAIL || "ai-doc-agent@local",
+  docCommitMessage:
+    process.env.DOC_COMMIT_MESSAGE || "docs: atualizacao automatica",
+  docSkipMarker: process.env.DOC_SKIP_MARKER || "[ai-doc-agent]",
+  docAutoPush: process.env.DOC_AUTO_PUSH !== "false",
+  docBranchStrategy: process.env.DOC_BRANCH_STRATEGY || "dedicated",
+  docBranch: process.env.DOC_BRANCH || "docs/auto-update"
 };

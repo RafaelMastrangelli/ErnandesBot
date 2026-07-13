@@ -1,4 +1,4 @@
-import { env } from "../../../config/env.js";
+import { env } from "../../config/env.js";
 import { mapBitbucketPushEvent } from "./mappers/bitbucket.mapper.js";
 import { mapGitHubPushEvent } from "./mappers/github.mapper.js";
 

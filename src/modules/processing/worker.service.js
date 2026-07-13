@@ -2,16 +2,24 @@ import { env } from "../../config/env.js";
 import { createLLMProvider } from "../../llm/index.js";
 import { cloneRepository } from "../repositoryManager.js";
 import { getCommitDiff } from "../diffAnalyzer.js";
+import { readExistingDocumentation } from "../documentation/documentation.service.js";
+import { commitAndPushDocumentation } from "../documentation/documentationCommitter.js";
 
-function buildDocumentationContext(event, diff) {
+function buildDocumentationContext(event, diff, documentation) {
   return {
     systemPrompt:
-      "Voce e um agente tecnico de documentacao. Gere atualizacoes claras, objetivas e consistentes com o repositorio.",
+      "Voce e um agente tecnico de documentacao. Atualize documentacao existente de forma clara, objetiva e consistente com o repositorio.",
     instructions: [
-      "Analise o diff recebido e produza uma proposta de documentacao tecnica.",
-      "Considere mudancas funcionais, impactos e pontos de atencao.",
-      "Responda em portugues e use formato enxuto."
+      "Voce recebera a documentacao atual do projeto, arquivos de contexto e o diff do ultimo push.",
+      "Atualize a documentacao mantendo informacoes validas e incorporando as mudancas do diff.",
+      "Remova ou ajuste trechos que ficaram obsoletos.",
+      "Responda em portugues.",
+      "Retorne APENAS o conteudo completo e atualizado do arquivo alvo.",
+      "Nao inclua explicacoes extras, comentarios fora do documento ou bloco markdown envolvendo a resposta."
     ].join(" "),
+    targetFile: env.docTargetFile,
+    existingDocumentation: documentation.target.content,
+    contextFiles: documentation.context,
     diff,
     metadata: {
       gitProvider: event.gitProvider,
@@ -52,22 +60,52 @@ async function processEvent(event, logger, llmProvider) {
     return;
   }
 
+  const documentation = readExistingDocumentation({
+    repoPath,
+    targetFile: env.docTargetFile,
+    contextFiles: env.docContextFiles
+  });
+
+  logger.info("Documentacao existente carregada", {
+    repo: event.repo,
+    targetFile: env.docTargetFile,
+    targetExists: documentation.target.exists,
+    contextFiles: documentation.context.map(file => file.relativePath)
+  });
+
   logger.info("Diff gerado com sucesso", {
     repo: event.repo,
     branch: event.branch,
     preview: diff.substring(0, 800)
   });
 
-  const context = buildDocumentationContext(event, diff);
-  const generatedDocumentation = await llmProvider.generateDocumentation(context);
+  const context = buildDocumentationContext(event, diff, documentation);
+  const updatedDocumentation = await llmProvider.generateDocumentation(context);
 
-  logger.info("Resposta da LLM recebida", {
+  logger.info("Documentacao atualizada recebida da LLM", {
     repo: event.repo,
     branch: event.branch,
-    preview: generatedDocumentation.substring(0, 800)
+    targetFile: env.docTargetFile,
+    preview: updatedDocumentation.substring(0, 800)
   });
 
-  // Ponto futuro: persistir/atualizar arquivos e efetuar commit/push.
+  const committed = await commitAndPushDocumentation({
+    repoPath,
+    targetFile: env.docTargetFile,
+    content: updatedDocumentation,
+    baseBranch: event.branch,
+    logger
+  });
+
+  if (committed) {
+    logger.info("Documentacao persistida no repositorio", {
+      repo: event.repo,
+      baseBranch: event.branch,
+      docBranch:
+        env.docBranchStrategy === "dedicated" ? env.docBranch : event.branch,
+      targetFile: env.docTargetFile
+    });
+  }
 }
 
 /**
@@ -78,7 +116,10 @@ export async function startWorker({ consumer, logger }) {
 
   logger.info("Worker aguardando mensagens na fila", {
     queue: env.rabbitmqQueue,
-    llmProvider: env.llmProvider
+    llmProvider: env.llmProvider,
+    docTargetFile: env.docTargetFile,
+    docBranchStrategy: env.docBranchStrategy,
+    docBranch: env.docBranch
   });
 
   await consumer.consume(async (event, { ack, nack, republish }) => {

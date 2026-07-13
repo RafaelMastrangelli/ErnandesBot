@@ -1,3 +1,5 @@
+import { env } from "../../../config/env.js";
+
 const ZERO_HASH = "0000000000000000000000000000000000000000";
 
 function parseBranch(ref) {
@@ -8,12 +10,36 @@ function parseBranch(ref) {
   return ref.replace("refs/heads/", "");
 }
 
+function isAgentCommit(payload) {
+  const skipMarker = env.docSkipMarker;
+  const headMessage = payload?.head_commit?.message;
+
+  if (typeof headMessage === "string" && headMessage.includes(skipMarker)) {
+    return true;
+  }
+
+  const commits = payload?.commits;
+
+  if (!Array.isArray(commits) || commits.length === 0) {
+    return false;
+  }
+
+  return commits.every(
+    commit =>
+      typeof commit?.message === "string" && commit.message.includes(skipMarker)
+  );
+}
+
 /**
  * @param {object} payload
  * @returns {import("../push-event.contract.js").PushEvent | null}
  */
 export function mapGitHubPushEvent(payload) {
   if (payload?.deleted === true) {
+    return null;
+  }
+
+  if (isAgentCommit(payload)) {
     return null;
   }
 

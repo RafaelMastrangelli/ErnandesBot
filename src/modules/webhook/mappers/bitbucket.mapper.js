@@ -1,8 +1,22 @@
+import { env } from "../../../config/env.js";
+
+function isAgentCommit(payload) {
+  const skipMarker = env.docSkipMarker;
+  const change = payload?.push?.changes?.[0];
+  const message = change?.new?.target?.message;
+
+  return typeof message === "string" && message.includes(skipMarker);
+}
+
 /**
  * @param {object} payload
  * @returns {import("../push-event.contract.js").PushEvent | null}
  */
 export function mapBitbucketPushEvent(payload) {
+  if (isAgentCommit(payload)) {
+    return null;
+  }
+
   const change = payload?.push?.changes?.[0];
 
   if (!change?.new?.target?.hash) {

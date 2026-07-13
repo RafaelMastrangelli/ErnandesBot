@@ -6,3 +6,7 @@ node_modules
 .env.production.local
 src/workspace
 .history
+.ssh
+docker/certs/*.crt
+docker/certs/*.pem
+docker/certs/*.cer
