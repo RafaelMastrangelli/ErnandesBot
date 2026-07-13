@@ -1,5 +1,5 @@
 # ErnandesBot
-Sistema de documentação automática para repositórios Git.
+Sistema de documentação automática para repositórios Git. Meu estágiario 24/7.
 
 ## O que é o projeto
 O AI Doc Agent é uma aplicação Node.js que utiliza inteligência artificial (IA) para gerar documentação automática para repositórios Git. Ele utiliza os serviços de IA da OpenAI ou Groq para gerar textos baseados em código-fonte.
