@@ -1,23 +1,17 @@
 FROM node:22-bookworm-slim
 
-COPY docker/certs /tmp/corp-certs
+COPY docker/certs/corp-bundle.pem /etc/ssl/corp/corp-bundle.pem
 
 RUN set -eu; \
   apt-get update; \
-  apt-get install -y --no-install-recommends ca-certificates; \
-  if [ -d /tmp/corp-certs ]; then \
-    i=0; \
-    for cert in /tmp/corp-certs/*.crt /tmp/corp-certs/*.pem /tmp/corp-certs/*.cer; do \
-      if [ -f "$cert" ]; then \
-        cp "$cert" "/usr/local/share/ca-certificates/corp-$i.crt"; \
-        i=$((i + 1)); \
-      fi; \
-    done; \
-    if [ "$i" -gt 0 ]; then update-ca-certificates; fi; \
-  fi; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends git openssh-client; \
-  rm -rf /var/lib/apt/lists/* /tmp/corp-certs
+  apt-get install -y --no-install-recommends ca-certificates git openssh-client; \
+  mkdir -p /usr/local/share/ca-certificates; \
+  awk 'BEGIN{n=0} /BEGIN CERTIFICATE/{n++; file=sprintf("/usr/local/share/ca-certificates/corp-%d.crt", n)} {print > file}' /etc/ssl/corp/corp-bundle.pem; \
+  update-ca-certificates; \
+  rm -rf /var/lib/apt/lists/*
+
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/corp/corp-bundle.pem
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 WORKDIR /app
 

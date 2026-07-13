@@ -41,6 +41,9 @@ services:
     environment:
       HOST: 0.0.0.0
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ai-doc}:${RABBITMQ_PASS:-ai-doc}@rabbitmq:5672
+      NODE_EXTRA_CA_CERTS: /etc/ssl/corp/corp-bundle.pem
+    volumes:
+      - ./docker/certs/corp-bundle.pem:/etc/ssl/corp/corp-bundle.pem:ro
     depends_on:
       rabbitmq-init:
         condition: service_completed_successfully
@@ -55,9 +58,11 @@ services:
     environment:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-ai-doc}:${RABBITMQ_PASS:-ai-doc}@rabbitmq:5672
       WORKSPACE_DIR: /app/src/workspace
+      NODE_EXTRA_CA_CERTS: /etc/ssl/corp/corp-bundle.pem
     volumes:
       - workspace_data:/app/src/workspace
       - ${SSH_KEY_DIR:-./.ssh}:/ssh-mount:ro
+      - ./docker/certs/corp-bundle.pem:/etc/ssl/corp/corp-bundle.pem:ro
     depends_on:
       rabbitmq-init:
         condition: service_completed_successfully

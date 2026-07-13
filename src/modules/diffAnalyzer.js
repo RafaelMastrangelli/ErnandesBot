@@ -22,7 +22,7 @@ export async function getCommitDiff({
   const filtered = rawDiff
     .split("\n")
     .filter(line => {
-      return !ignoredPaths.some(path => line.includes(path));
+      return !ignoredPaths.some(ignoredPath => line.includes(ignoredPath));
     })
     .join("\n");
 

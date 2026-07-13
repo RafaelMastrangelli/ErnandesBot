@@ -4,7 +4,8 @@ const DEFAULT_IGNORED_DIFF_PATHS = [
   "build",
   ".git",
   ".next",
-  "coverage"
+  "coverage",
+  ".history"
 ];
 
 function parseNumber(value, fallback) {
