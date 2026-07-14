@@ -5,6 +5,7 @@ import { getCommitDiff } from "../diffAnalyzer.js";
 import { readExistingDocumentation } from "../documentation/documentation.service.js";
 import { collectRepositoryContext } from "../documentation/repositoryContext.js";
 import { commitAndPushDocumentation } from "../documentation/documentationCommitter.js";
+import { cleanLinkedInOutput } from "../documentation/linkedin.service.js";
 
 function buildMetadata(event) {
   return {
@@ -66,17 +67,26 @@ function buildLinkedInContext(event, readmeContent, diff, existingLinkedIn) {
   return {
     mode: "linkedin",
     systemPrompt:
-      "Voce e um especialista em comunicacao tecnica para LinkedIn. Escreva posts claros, profissionais e autênticos em portugues.",
+      "Voce e um especialista em comunicacao tecnica para LinkedIn. Escreva posts curtos, profissionais e autênticos em portugues do Brasil.",
     instructions: [
-      "Crie uma apresentacao pronta para publicar no LinkedIn sobre este projeto.",
-      "Use o README e o diff como fonte da verdade.",
-      "Estruture: gancho inicial, problema/contexto, o que foi construido, stack/tecnologias, aprendizados ou impacto, CTA curto e hashtags relevantes.",
-      "Tom profissional, humano e objetivo. Evite exageros e clickbait.",
-      "Tamanho ideal: entre 800 e 1800 caracteres.",
+      "Crie UM post pronto para colar no LinkedIn sobre este projeto.",
+      "Use o README como fonte principal. Nao invente produtos, nomes ou features que nao estejam no README.",
+      "Estruture em paragrafos curtos:",
+      "1) gancho em 1 frase,",
+      "2) problema ou motivacao,",
+      "3) o que foi construido (2-4 bullets ou frases),",
+      "4) stack em 1 linha,",
+      "5) aprendizado ou impacto,",
+      "6) CTA curto (ex.: link do repo ou convite a opiniao).",
+      "Tom: primeira pessoa, humano, sem tom de propaganda corporativa ou clickbait.",
+      "LIMITE RIGIDO: no maximo 1500 caracteres no corpo do post (sem contar hashtags).",
+      "LIMITE RIGIDO: no maximo 6 hashtags no FINAL, em UMA unica linha, relevantes ao projeto.",
+      "PROIBIDO: lista enorme de hashtags, repeticao, hashtags genericas de sustentabilidade/meio ambiente se nao forem do projeto.",
+      "PROIBIDO: inventar nomes diferentes do projeto (use o nome do README, ex.: ErnandesBot / ai-doc-agent).",
       existingLinkedIn?.trim()
-        ? "Ja existe uma apresentacao anterior. Atualize mantendo o estilo e incorporando mudancas relevantes."
-        : "Nao existe apresentacao anterior. Crie a versao inicial.",
-      "Retorne APENAS o texto final do post (markdown simples permitido).",
+        ? "Ja existe uma apresentacao anterior. Reescreva de forma limpa e objetiva; ignore qualquer lixo de hashtags da versao anterior."
+        : "Crie a versao inicial.",
+      "Retorne APENAS o texto final do post.",
       "Nao envolva a resposta em bloco de codigo."
     ].join(" "),
     targetFile: env.linkedinTargetFile,
@@ -211,7 +221,7 @@ async function processEvent(event, logger, llmProvider) {
   ];
 
   if (env.linkedinEnabled) {
-    const linkedInContent = await llmProvider.generateDocumentation(
+    const rawLinkedInContent = await llmProvider.generateDocumentation(
       buildLinkedInContext(
         event,
         readmeContent,
@@ -219,6 +229,11 @@ async function processEvent(event, logger, llmProvider) {
         linkedInDocumentation.target.content
       )
     );
+
+    const linkedInContent = cleanLinkedInOutput(rawLinkedInContent, {
+      maxChars: env.linkedinMaxChars,
+      maxHashtags: env.linkedinMaxHashtags
+    });
 
     logger.info("Apresentacao LinkedIn gerada pela LLM", {
       repo: event.repo,

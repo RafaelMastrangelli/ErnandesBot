@@ -75,6 +75,8 @@ export const env = {
   linkedinEnabled: process.env.LINKEDIN_ENABLED !== "false",
   linkedinTargetFile:
     process.env.LINKEDIN_TARGET_FILE || "docs/apresentacao-linkedin.md",
+  linkedinMaxChars: parseNumber(process.env.LINKEDIN_MAX_CHARS, 1500),
+  linkedinMaxHashtags: parseNumber(process.env.LINKEDIN_MAX_HASHTAGS, 6),
   docCreatePullRequest: process.env.DOC_CREATE_PULL_REQUEST !== "false",
   docPullRequestTitle:
     process.env.DOC_PULL_REQUEST_TITLE ||
