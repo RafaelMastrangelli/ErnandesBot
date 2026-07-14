@@ -24,6 +24,11 @@ A configuração da aplicação é feita por meio de variáveis de ambiente defi
 - `RABBITMQ_QUEUE`: Nome da fila de processamento.
 - `GIT_PROVIDER`: Provedor de versionamento (GitHub ou Bitbucket).
 - `DOC_TARGET_FILE`: Arquivo de documentação a ser gerado.
+- `LINKEDIN_ENABLED`: Flag para habilitar a geração de apresentação para LinkedIn.
+- `LINKEDIN_TARGET_FILE`: Arquivo de apresentação para LinkedIn.
+- `DOC_CREATE_PULL_REQUEST`: Flag para criar pull request automático no GitHub.
+- `DOC_PULL_REQUEST_TITLE` e `DOC_PULL_REQUEST_BODY`: Título e corpo do pull request.
+- `GITHUB_TOKEN`: Token de acesso para o GitHub.
 
 ## Como executar
 A aplicação pode ser executada utilizando o comando `docker-compose up --build` após configurar as variáveis de ambiente no arquivo `.env`.
@@ -32,9 +37,13 @@ A aplicação pode ser executada utilizando o comando `docker-compose up --build
 1. O worker processa o evento da fila e gera documentação automática utilizando IA.
 2. A documentação gerada é escrita no arquivo de documentação configurado (`DOC_TARGET_FILE`).
 3. O worker commita a documentação gerada no repositório Git.
+4. Se configurado, o worker cria um pull request automático no GitHub.
 
 ## Branch de documentação
 A aplicação pode ser configurada para commitar a documentação gerada em um branch separado (configuração `DOC_BRANCH_STRATEGY=dedicated`) ou no branch principal (configuração `DOC_BRANCH_STRATEGY=same`).
 
 ## Bootstrap
 Se o arquivo de documentação não existir, a aplicação pode ser configurada para gerar um arquivo inicial com base nos arquivos do repositório (configuração `DOC_BOOTSTRAP_MAX_FILES` e `DOC_BOOTSTRAP_MAX_FILE_BYTES`).
+
+## Apresentação para LinkedIn
+A aplicação pode ser configurada para gerar uma apresentação para LinkedIn com base no conteúdo do README e no diff do repositório. A apresentação é gerada utilizando IA e pode ser commitada no repositório Git.
