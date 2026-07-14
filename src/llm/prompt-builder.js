@@ -4,9 +4,7 @@ function formatContextFiles(contextFiles) {
   }
 
   return contextFiles
-    .map(file => {
-      return [`--- ${file.relativePath} ---`, file.content.trim()].join("\n");
-    })
+    .map(file => [`--- ${file.relativePath} ---`, file.content.trim()].join("\n"))
     .join("\n\n");
 }
 
@@ -46,13 +44,13 @@ export function buildBootstrapDocumentationPrompt(context) {
     "",
     `Arquivo alvo: ${context.targetFile}`,
     "",
-    "Estrutura do repositorio (arquivos descobertos):",
+    "Estrutura do repositorio:",
     (context.repositoryTree || []).join("\n") || "(vazia)",
     "",
-    "Arquivos principais (conteudo):",
+    "Arquivos principais:",
     formatRepositoryFiles(context.repositoryFiles || []),
     "",
-    "Diff do commit que disparou o bootstrap (opcional):",
+    "Diff do commit (opcional):",
     context.diff || "(sem diff)",
     "",
     "Metadata:",
@@ -60,10 +58,28 @@ export function buildBootstrapDocumentationPrompt(context) {
   ].join("\n");
 }
 
-/**
- * Compatibilidade com providers — escolhe o prompt conforme o modo.
- */
+export function buildLinkedInPrompt(context) {
+  return [
+    context.instructions,
+    "",
+    `Arquivo alvo: ${context.targetFile}`,
+    "",
+    "README do projeto (fonte principal):",
+    context.readmeContent?.trim() || "(ainda nao disponivel)",
+    "",
+    "Diff recente (contexto complementar):",
+    context.diff || "(sem diff)",
+    "",
+    "Metadata:",
+    JSON.stringify(context.metadata || {}, null, 2)
+  ].join("\n");
+}
+
 export function buildDocumentationPrompt(context) {
+  if (context.mode === "linkedin") {
+    return buildLinkedInPrompt(context);
+  }
+
   if (context.mode === "bootstrap") {
     return buildBootstrapDocumentationPrompt(context);
   }

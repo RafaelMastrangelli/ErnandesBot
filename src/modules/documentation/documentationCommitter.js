@@ -9,21 +9,37 @@ import {
   prepareDocumentationBranch,
   pushDocumentationBranch
 } from "./documentationBranch.js";
+import { createOrReusePullRequest } from "./githubPullRequest.js";
 
 /**
- * @param {{ repoPath: string, targetFile: string, content: string, baseBranch: string, logger: import("../../common/logger.js").Logger }} params
+ * @param {{
+ *   repoPath: string,
+ *   files: Array<{ path: string, content: string }>,
+ *   baseBranch: string,
+ *   owner: string,
+ *   repo: string,
+ *   gitProvider: string,
+ *   logger: import("../../common/logger.js").Logger
+ * }} params
  */
 export async function commitAndPushDocumentation({
   repoPath,
-  targetFile,
-  content,
+  files,
   baseBranch,
+  owner,
+  repo,
+  gitProvider,
   logger
 }) {
-  const cleanedContent = cleanLlmDocumentationOutput(content);
+  const preparedFiles = (files || [])
+    .map(file => ({
+      path: file.path,
+      content: cleanLlmDocumentationOutput(file.content)
+    }))
+    .filter(file => file.path && file.content);
 
-  if (!cleanedContent) {
-    throw new Error("Conteudo de documentacao vazio apos processamento da LLM");
+  if (preparedFiles.length === 0) {
+    throw new Error("Nenhum arquivo de documentacao valido para commit");
   }
 
   const git = simpleGit(repoPath);
@@ -33,54 +49,91 @@ export async function commitAndPushDocumentation({
     logger
   });
 
-  writeDocumentationFile({
-    repoPath,
-    targetFile,
-    content: cleanedContent
-  });
-
-  await git.add(targetFile);
+  for (const file of preparedFiles) {
+    writeDocumentationFile({
+      repoPath,
+      targetFile: file.path,
+      content: file.content
+    });
+    await git.add(file.path);
+  }
 
   const status = await git.status();
 
   if (status.staged.length === 0) {
     logger.info("Documentacao sem alteracoes para commit", {
-      targetFile,
+      files: preparedFiles.map(file => file.path),
       pushBranch
     });
-    return false;
+    return {
+      committed: false,
+      pushed: false,
+      pushBranch,
+      pullRequest: null
+    };
   }
 
   await git.addConfig("user.name", env.docGitUserName);
   await git.addConfig("user.email", env.docGitUserEmail);
 
   const commitMessage = `${env.docCommitMessage} ${env.docSkipMarker}`.trim();
-
   await git.commit(commitMessage);
 
   logger.info("Documentacao commitada localmente", {
-    targetFile,
+    files: preparedFiles.map(file => file.path),
     baseBranch,
     pushBranch,
     commitMessage
   });
 
   if (!env.docAutoPush) {
-    logger.info("Push automatico desabilitado", {
-      targetFile,
-      pushBranch
-    });
-    return true;
+    logger.info("Push automatico desabilitado", { pushBranch });
+    return {
+      committed: true,
+      pushed: false,
+      pushBranch,
+      pullRequest: null
+    };
   }
 
   await pushDocumentationBranch({ git, branch: pushBranch });
 
   logger.info("Documentacao enviada para o repositorio remoto", {
-    targetFile,
+    files: preparedFiles.map(file => file.path),
     baseBranch,
-    pushBranch,
-    prReady: env.docBranchStrategy === "dedicated"
+    pushBranch
   });
 
-  return true;
+  let pullRequest = null;
+
+  if (
+    env.docCreatePullRequest &&
+    env.docBranchStrategy === "dedicated" &&
+    gitProvider === "github"
+  ) {
+    pullRequest = await createOrReusePullRequest({
+      owner,
+      repo,
+      headBranch: pushBranch,
+      baseBranch,
+      title: env.docPullRequestTitle,
+      body: [
+        env.docPullRequestBody,
+        "",
+        "Arquivos atualizados:",
+        ...preparedFiles.map(file => `- \`${file.path}\``),
+        "",
+        `Gerado automaticamente por ai-doc-agent ${env.docSkipMarker}`
+      ].join("\n"),
+      token: env.githubToken,
+      logger
+    });
+  }
+
+  return {
+    committed: true,
+    pushed: true,
+    pushBranch,
+    pullRequest
+  };
 }

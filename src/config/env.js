@@ -71,5 +71,16 @@ export const env = {
   docBootstrapMaxTotalChars: parseNumber(
     process.env.DOC_BOOTSTRAP_MAX_TOTAL_CHARS,
     60000
-  )
+  ),
+  linkedinEnabled: process.env.LINKEDIN_ENABLED !== "false",
+  linkedinTargetFile:
+    process.env.LINKEDIN_TARGET_FILE || "docs/apresentacao-linkedin.md",
+  docCreatePullRequest: process.env.DOC_CREATE_PULL_REQUEST !== "false",
+  docPullRequestTitle:
+    process.env.DOC_PULL_REQUEST_TITLE ||
+    "docs: atualizacao automatica de documentacao e LinkedIn",
+  docPullRequestBody:
+    process.env.DOC_PULL_REQUEST_BODY ||
+    "Este PR atualiza automaticamente o README e a apresentacao para LinkedIn gerados pelo ai-doc-agent.",
+  githubToken: process.env.GITHUB_TOKEN || ""
 };

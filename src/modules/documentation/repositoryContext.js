@@ -29,8 +29,7 @@ const PRIORITY_FILES = [
   "src/modules/webhook/webhook.handler.js",
   "src/llm/index.js",
   "src/queue/rabbitmq-queue.js",
-  "src/modules/repositoryManager.js",
-  "src/modules/documentation/documentationCommitter.js"
+  "src/modules/repositoryManager.js"
 ];
 
 const SOURCE_EXTENSIONS = new Set([
@@ -42,8 +41,7 @@ const SOURCE_EXTENSIONS = new Set([
   ".yml",
   ".yaml",
   ".md",
-  ".sh",
-  ".ps1"
+  ".sh"
 ]);
 
 function shouldSkipDir(dirName, ignoredPaths) {
@@ -104,23 +102,16 @@ function scoreFile(file) {
 
   if (relativePath === "package.json") score += 500;
   if (relativePath.endsWith("docker-compose.yml")) score += 300;
-  if (relativePath.endsWith("dockerfile")) score += 200;
   if (relativePath.startsWith("src/")) score += 100;
   if (relativePath.includes("webhook")) score += 80;
   if (relativePath.includes("worker")) score += 80;
   if (relativePath.includes("llm")) score += 70;
-  if (relativePath.includes("queue") || relativePath.includes("rabbit")) score += 60;
-  if (relativePath.includes("documentation")) score += 60;
-  if (relativePath.endsWith(".md")) score -= 40;
   if (relativePath.includes("cert") || relativePath.includes(".ssh")) score -= 200;
 
   return score;
 }
 
 /**
- * Coleta arvore + conteudo dos arquivos mais relevantes do repositorio.
- * Usado no bootstrap quando o README ainda nao existe.
- *
  * @param {{
  *   repoPath: string,
  *   ignoredPaths: string[],
@@ -170,9 +161,7 @@ export function collectRepositoryContext({
       content = `${content.slice(0, maxFileBytes)}\n\n...[arquivo truncado]...`;
     }
 
-    if (totalChars + content.length > maxTotalChars) {
-      break;
-    }
+    if (totalChars + content.length > maxTotalChars) break;
 
     selectedFiles.push({
       relativePath: file.relativePath,

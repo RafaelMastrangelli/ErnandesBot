@@ -11,5 +11,3 @@ docker/certs/*.crt
 docker/certs/*.pem
 docker/certs/*.cer
 !docker/certs/.gitkeep
-
-#teste

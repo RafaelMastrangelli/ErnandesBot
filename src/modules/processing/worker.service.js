@@ -47,12 +47,12 @@ function buildBootstrapContext(event, repositoryContext, diff) {
     instructions: [
       "O arquivo alvo ainda nao existe. Faca bootstrap da documentacao com base no contexto total do repositorio.",
       "Analise a estrutura e os arquivos principais para entender o proposito do produto, arquitetura, fluxo e como executar.",
-      "Priorize a funcionalidade de negocio (ex.: webhook, fila, worker, LLM, atualizacao de docs) sobre detalhes de infraestrutura secundaria (certs, proxy, TLS), a menos que sejam centrais ao proposito.",
+      "Priorize a funcionalidade de negocio sobre detalhes de infraestrutura secundaria (certs, proxy, TLS).",
       "Nao invente portas, comandos, servicos ou tecnologias que nao aparecam nos arquivos fornecidos.",
-      "Inclua secoes uteis: o que e o projeto, arquitetura, como funciona, configuracao (.env relevantes), como executar e fluxo de documentacao automatica se existir.",
+      "Inclua secoes uteis: o que e o projeto, arquitetura, como funciona, configuracao, como executar.",
       "Responda em portugues.",
       "Retorne APENAS o conteudo completo do README em markdown.",
-      "Nao inclua explicacoes extras, comentarios fora do documento ou bloco markdown envolvendo a resposta."
+      "Nao inclua explicacoes extras ou bloco markdown envolvendo a resposta."
     ].join(" "),
     targetFile: env.docTargetFile,
     repositoryTree: repositoryContext.tree,
@@ -62,10 +62,32 @@ function buildBootstrapContext(event, repositoryContext, diff) {
   };
 }
 
+function buildLinkedInContext(event, readmeContent, diff, existingLinkedIn) {
+  return {
+    mode: "linkedin",
+    systemPrompt:
+      "Voce e um especialista em comunicacao tecnica para LinkedIn. Escreva posts claros, profissionais e autênticos em portugues.",
+    instructions: [
+      "Crie uma apresentacao pronta para publicar no LinkedIn sobre este projeto.",
+      "Use o README e o diff como fonte da verdade.",
+      "Estruture: gancho inicial, problema/contexto, o que foi construido, stack/tecnologias, aprendizados ou impacto, CTA curto e hashtags relevantes.",
+      "Tom profissional, humano e objetivo. Evite exageros e clickbait.",
+      "Tamanho ideal: entre 800 e 1800 caracteres.",
+      existingLinkedIn?.trim()
+        ? "Ja existe uma apresentacao anterior. Atualize mantendo o estilo e incorporando mudancas relevantes."
+        : "Nao existe apresentacao anterior. Crie a versao inicial.",
+      "Retorne APENAS o texto final do post (markdown simples permitido).",
+      "Nao envolva a resposta em bloco de codigo."
+    ].join(" "),
+    targetFile: env.linkedinTargetFile,
+    readmeContent,
+    diff,
+    metadata: buildMetadata(event)
+  };
+}
+
 async function resolveDiff(event, repoPath, logger) {
-  if (!event.newHash) {
-    return "";
-  }
+  if (!event.newHash) return "";
 
   try {
     const oldHash = event.oldHash || `${event.newHash}^`;
@@ -86,23 +108,14 @@ async function resolveDiff(event, repoPath, logger) {
   }
 }
 
-async function processEvent(event, logger, llmProvider) {
-  const repoPath = await cloneRepository({
-    gitProvider: event.gitProvider,
-    owner: event.owner,
-    repo: event.repo,
-    branch: event.branch,
-    workspaceDir: env.workspaceDir,
-    logger
-  });
-
-  const documentation = readExistingDocumentation({
-    repoPath,
-    targetFile: env.docTargetFile,
-    contextFiles: env.docContextFiles
-  });
-
-  const diff = await resolveDiff(event, repoPath, logger);
+async function generateReadme({
+  event,
+  repoPath,
+  documentation,
+  diff,
+  llmProvider,
+  logger
+}) {
   const readmeExists = documentation.target.exists;
 
   logger.info("Modo de documentacao definido", {
@@ -110,8 +123,6 @@ async function processEvent(event, logger, llmProvider) {
     targetFile: env.docTargetFile,
     mode: readmeExists ? "incremental" : "bootstrap"
   });
-
-  let context;
 
   if (!readmeExists) {
     const repositoryContext = collectRepositoryContext({
@@ -128,57 +139,116 @@ async function processEvent(event, logger, llmProvider) {
       previewFiles: repositoryContext.files.map(file => file.relativePath)
     });
 
-    context = buildBootstrapContext(event, repositoryContext, diff);
-  } else {
-    if (!diff || diff.trim().length === 0) {
-      logger.info("Nenhuma alteracao relevante encontrada", {
-        repo: event.repo,
-        branch: event.branch
-      });
-      return;
-    }
-
-    logger.info("Documentacao existente carregada", {
-      repo: event.repo,
-      targetFile: env.docTargetFile,
-      contextFiles: documentation.context.map(file => file.relativePath)
-    });
-
-    logger.info("Diff gerado com sucesso", {
-      repo: event.repo,
-      branch: event.branch,
-      preview: diff.substring(0, 800)
-    });
-
-    context = buildIncrementalContext(event, diff, documentation);
+    return llmProvider.generateDocumentation(
+      buildBootstrapContext(event, repositoryContext, diff)
+    );
   }
 
-  const updatedDocumentation = await llmProvider.generateDocumentation(context);
+  if (!diff || diff.trim().length === 0) {
+    logger.info("README existente sem diff relevante; mantendo conteudo atual", {
+      repo: event.repo
+    });
+    return documentation.target.content;
+  }
 
-  logger.info("Documentacao recebida da LLM", {
+  return llmProvider.generateDocumentation(
+    buildIncrementalContext(event, diff, documentation)
+  );
+}
+
+async function processEvent(event, logger, llmProvider) {
+  const repoPath = await cloneRepository({
+    gitProvider: event.gitProvider,
+    owner: event.owner,
     repo: event.repo,
     branch: event.branch,
-    mode: context.mode,
-    targetFile: env.docTargetFile,
-    preview: updatedDocumentation.substring(0, 800)
-  });
-
-  const committed = await commitAndPushDocumentation({
-    repoPath,
-    targetFile: env.docTargetFile,
-    content: updatedDocumentation,
-    baseBranch: event.branch,
+    workspaceDir: env.workspaceDir,
     logger
   });
 
-  if (committed) {
-    logger.info("Documentacao persistida no repositorio", {
+  const documentation = readExistingDocumentation({
+    repoPath,
+    targetFile: env.docTargetFile,
+    contextFiles: env.docContextFiles
+  });
+
+  const linkedInDocumentation = readExistingDocumentation({
+    repoPath,
+    targetFile: env.linkedinTargetFile,
+    contextFiles: []
+  });
+
+  const diff = await resolveDiff(event, repoPath, logger);
+  const readmeExists = documentation.target.exists;
+
+  if (readmeExists && (!diff || diff.trim().length === 0)) {
+    logger.info("Nenhuma alteracao relevante encontrada", {
       repo: event.repo,
-      mode: context.mode,
+      branch: event.branch
+    });
+    return;
+  }
+
+  const readmeContent = await generateReadme({
+    event,
+    repoPath,
+    documentation,
+    diff,
+    llmProvider,
+    logger
+  });
+
+  logger.info("README gerado pela LLM", {
+    repo: event.repo,
+    preview: readmeContent.substring(0, 800)
+  });
+
+  const files = [
+    {
+      path: env.docTargetFile,
+      content: readmeContent
+    }
+  ];
+
+  if (env.linkedinEnabled) {
+    const linkedInContent = await llmProvider.generateDocumentation(
+      buildLinkedInContext(
+        event,
+        readmeContent,
+        diff,
+        linkedInDocumentation.target.content
+      )
+    );
+
+    logger.info("Apresentacao LinkedIn gerada pela LLM", {
+      repo: event.repo,
+      targetFile: env.linkedinTargetFile,
+      preview: linkedInContent.substring(0, 800)
+    });
+
+    files.push({
+      path: env.linkedinTargetFile,
+      content: linkedInContent
+    });
+  }
+
+  const result = await commitAndPushDocumentation({
+    repoPath,
+    files,
+    baseBranch: event.branch,
+    owner: event.owner,
+    repo: event.repo,
+    gitProvider: event.gitProvider,
+    logger
+  });
+
+  if (result.committed) {
+    logger.info("Artefatos persistidos no repositorio", {
+      repo: event.repo,
       baseBranch: event.branch,
-      docBranch:
-        env.docBranchStrategy === "dedicated" ? env.docBranch : event.branch,
-      targetFile: env.docTargetFile
+      pushBranch: result.pushBranch,
+      files: files.map(file => file.path),
+      pullRequestUrl: result.pullRequest?.url || null
     });
   }
 }
@@ -193,8 +263,11 @@ export async function startWorker({ consumer, logger }) {
     queue: env.rabbitmqQueue,
     llmProvider: env.llmProvider,
     docTargetFile: env.docTargetFile,
+    linkedinEnabled: env.linkedinEnabled,
+    linkedinTargetFile: env.linkedinTargetFile,
     docBranchStrategy: env.docBranchStrategy,
-    docBranch: env.docBranch
+    docBranch: env.docBranch,
+    docCreatePullRequest: env.docCreatePullRequest
   });
 
   await consumer.consume(async (event, { ack, nack, republish }) => {
