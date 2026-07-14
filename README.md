@@ -26,6 +26,8 @@ A configuração da aplicação é feita por meio de variáveis de ambiente defi
 - `DOC_TARGET_FILE`: Arquivo de documentação a ser gerado.
 - `LINKEDIN_ENABLED`: Flag para habilitar a geração de apresentação para LinkedIn.
 - `LINKEDIN_TARGET_FILE`: Arquivo de apresentação para LinkedIn.
+- `LINKEDIN_MAX_CHARS`: Número máximo de caracteres para a apresentação no LinkedIn.
+- `LINKEDIN_MAX_HASHTAGS`: Número máximo de hashtags para a apresentação no LinkedIn.
 - `DOC_CREATE_PULL_REQUEST`: Flag para criar pull request automático no GitHub.
 - `DOC_PULL_REQUEST_TITLE` e `DOC_PULL_REQUEST_BODY`: Título e corpo do pull request.
 - `GITHUB_TOKEN`: Token de acesso para o GitHub.
@@ -46,4 +48,10 @@ A aplicação pode ser configurada para commitar a documentação gerada em um b
 Se o arquivo de documentação não existir, a aplicação pode ser configurada para gerar um arquivo inicial com base nos arquivos do repositório (configuração `DOC_BOOTSTRAP_MAX_FILES` e `DOC_BOOTSTRAP_MAX_FILE_BYTES`).
 
 ## Apresentação para LinkedIn
-A aplicação pode ser configurada para gerar uma apresentação para LinkedIn com base no conteúdo do README e no diff do repositório. A apresentação é gerada utilizando IA e pode ser commitada no repositório Git.
+A aplicação pode ser configurada para gerar uma apresentação para LinkedIn com base no conteúdo do README e no diff do repositório. A apresentação é gerada utilizando IA e pode ser commitada no repositório Git. A apresentação deve ter no máximo 1500 caracteres e 6 hashtags. O tom deve ser profissional, humano e objetivo, evitando exageros e clickbait. A estrutura da apresentação deve ser composta por: 
+1. Gancho em 1 frase,
+2. Problema ou motivação,
+3. O que foi construido (2-4 bullets ou frases),
+4. Stack em 1 linha,
+5. Aprendizado ou impacto,
+6. CTA curto (ex.: link do repo ou convite a opinião).
